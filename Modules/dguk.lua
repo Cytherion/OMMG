@@ -34,7 +34,7 @@ local function updateObjectivesStatus(completedIndex)
 end
 
 local function handleObjectiveError(step)
-    logger.error("Failed to complete objective: %s after multiple attempts. Attempting recovery...", step.label)
+    logger.error("Objective '%s' failed after maximum attempts. Re-navigating...", step.label)
     navigation.navTo("dguk", step.label)
     mq.delay(2000)
 end
@@ -46,24 +46,25 @@ function dguk.run()
     
     local driverName = missionManager.getDriverName()
     local isDriver = mq.TLO.Me.Name():lower() == driverName:lower()
-    logger.info("Driver check: current toon %s; driver is %s; isDriver = %s", mq.TLO.Me.Name(), driverName, tostring(isDriver))
+    logger.info("Driver check: Current toon '%s'; Driver '%s'; isDriver = %s",
+        mq.TLO.Me.Name(), driverName, tostring(isDriver))
     
     for i, step in ipairs(objectives) do
         ui.setMissionSteps("Current: " .. step.label, (objectives[i+1] and "Next: " .. objectives[i+1].label or "None"))
-        logger.info("Moving to %s", step.label)
+        logger.info("Moving to objective: %s", step.label)
         combat.moveTo(step.label)
         
         local groupWaitTime = 0
         while not readiness.waitForGroup(10) do
-            logger.warn("Group not ready near: %s, waiting...", step.label)
+            logger.warn("Group not ready near '%s'. Waiting...", step.label)
             mq.delay(5000)
             groupWaitTime = groupWaitTime + 5
             if groupWaitTime > 30 then
-                logger.error("Group readiness timeout near %s. Attempting recovery.", step.label)
+                logger.error("Group readiness timeout near '%s'. Attempting recovery...", step.label)
                 break
             end
         end
-
+        
         local attempts = 0
         local maxAttempts = 10
         repeat
@@ -74,7 +75,7 @@ function dguk.run()
                 mq.delay(500, function() return mq.TLO.Target.ID() == targetID end)
                 combat.engage()
             else
-                logger.warn("Target %s not found. Attempt %d/%d", step.target, attempts, maxAttempts)
+                logger.warn("Target '%s' not found. Attempt %d/%d", step.target, attempts, maxAttempts)
             end
             if attempts >= maxAttempts then
                 handleObjectiveError(step)
@@ -83,11 +84,11 @@ function dguk.run()
         until mq.TLO.Task("Ancient Heroes - Cursed Guk").Objective(step.objective).Status() == "Done"
         
         if mq.TLO.Task("Ancient Heroes - Cursed Guk").Objective(step.objective).Status() ~= "Done" then
-            logger.error("Objective %s still not complete. Skipping.", step.label)
+            logger.error("Objective '%s' still not complete. Skipping.", step.label)
         else
-            logger.success("Objective complete: %s", step.label)
+            logger.success("Objective '%s' complete.", step.label)
         end
-        
+
         updateObjectivesStatus(i + 1)
         
         if isDriver then
@@ -97,7 +98,7 @@ function dguk.run()
                 logger.error("Sync timeout waiting for objective %d", i)
             end
         end
-        
+
         mq.cmd("/stand")
         mq.delay(2000)
     end

@@ -32,7 +32,7 @@ local function updateObjectivesStatus(completedIndex)
 end
 
 local function handleObjectiveError(step)
-    logger.error("Failed to complete objective: %s after multiple attempts. Attempting recovery...", step.label)
+    logger.error("Objective '%s' failed after maximum attempts. Re-navigating...", step.label)
     navigation.navTo("naggy", step.label)
     mq.delay(2000)
 end
@@ -41,23 +41,24 @@ function naggy.run()
     missionManager.setActive("naggy")
     ui.setCurrentMission("Nagafen's Lair")
     updateObjectivesStatus(1)
-    
-    local driverName = missionManager.getDriverName()
+
+    local driverName = missionManager.getDriverName()  -- returns the designated driver's name
     local isDriver = mq.TLO.Me.Name():lower() == driverName:lower()
-    logger.info("Driver check: current toon %s; driver is %s; isDriver = %s", mq.TLO.Me.Name(), driverName, tostring(isDriver))
-    
+    logger.info("Driver check: Current toon is '%s'; Driver is '%s' → isDriver = %s",
+        mq.TLO.Me.Name(), driverName, tostring(isDriver))
+
     for i, step in ipairs(objectives) do
         ui.setMissionSteps("Current: " .. step.label, (objectives[i+1] and "Next: " .. objectives[i+1].label or "None"))
-        logger.info("Moving to %s", step.label)
+        logger.info("Moving to objective: %s", step.label)
         combat.moveTo(step.label)
         
         local groupWaitTime = 0
         while not readiness.waitForGroup(10) do
-            logger.warn("Group not ready near: %s, waiting...", step.label)
+            logger.warn("Group not ready near '%s'. Waiting...", step.label)
             mq.delay(5000)
             groupWaitTime = groupWaitTime + 5
             if groupWaitTime > 30 then
-                logger.error("Group readiness timeout near %s. Attempting recovery.", step.label)
+                logger.error("Group readiness timeout near '%s'. Attempting recovery...", step.label)
                 break
             end
         end
@@ -70,25 +71,25 @@ function naggy.run()
             if targetID > 0 then
                 mq.cmdf("/target id %d", targetID)
                 mq.delay(500, function() return mq.TLO.Target.ID() == targetID end)
-                combat.engage()
+                combat.engage()  -- Full combat/heal/buff routine
             else
-                logger.warn("Target %s not found. Attempt %d/%d", step.target, attempts, maxAttempts)
+                logger.warn("Target '%s' not found (Attempt %d/%d)", step.target, attempts, maxAttempts)
             end
             if attempts >= maxAttempts then
                 handleObjectiveError(step)
                 break
             end
         until mq.TLO.Task("Ancient Heroes - Nagafen's Lair").Objective(step.objective).Status() == "Done"
-        
+
         if mq.TLO.Task("Ancient Heroes - Nagafen's Lair").Objective(step.objective).Status() ~= "Done" then
-            logger.error("Objective %s still not complete. Skipping.", step.label)
+            logger.error("Objective '%s' still incomplete. Skipping to next.", step.label)
         else
-            logger.success("Objective complete: %s", step.label)
+            logger.success("Objective '%s' completed.", step.label)
         end
-        
+
         updateObjectivesStatus(i + 1)
-        
-        -- Synchronization: driver broadcasts current step; followers wait.
+
+        -- Synchronize: if driver, broadcast; if follower, wait.
         if isDriver then
             sync.broadcastStep(i)
         else
@@ -96,7 +97,7 @@ function naggy.run()
                 logger.error("Sync timeout waiting for objective %d", i)
             end
         end
-        
+
         mq.cmd("/stand")
         mq.delay(2000)
     end
@@ -104,7 +105,7 @@ function naggy.run()
     missionManager.clearActive()
     ui.setCurrentMission(nil)
     ui.setMissionSteps("None", "None")
-    logger.info("All Nagafen's Lair objectives complete. Looting chest...")
+    logger.info("All Nagafen's Lair objectives complete. Initiating auto-loot...")
     mq.cmd("/target me")
     mq.delay(500)
     mq.cmd("/autoloot")
