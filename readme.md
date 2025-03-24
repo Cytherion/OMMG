@@ -6,68 +6,64 @@
 
 ## Overview
 
-OMM Missions Lua automates group missions for Old Man McKenzie (OMM) in EverQuest using MacroQuest Lua. It is built in Lua with a modular, table‑driven design and integrates the following key features:
+OMM Missions Lua automates group missions for Old Man McKenzie (OMM) in EverQuest using MacroQuest Lua. It features a modular, table‑driven design with robust coordination between group members via a driver/follower system. Key enhancements include:
 
 - **Mission Modules:**  
-  - **Lower Guk (lguk):** Automates the objectives for Lower Guk missions.  
-  - **Nagafen's Lair (naggy):** Automates the objectives for Nagafen's Lair missions.  
-  - **Cursed Guk (dguk):** Automates the objectives for Cursed Guk missions.
+  - **Lower Guk (lguk):** Automates objectives for Lower Guk missions.  
+  - **Nagafen's Lair (naggy):** Automates objectives for Nagafen's Lair missions.  
+  - **Cursed Guk (dguk):** Automates objectives for Cursed Guk missions.
 
-- **Enhanced Combat:**  
-  - Class‑specific combat logic (e.g., Enchanter mezzing, Necro drain, Mage nukes, etc.).  
-  - Pause/Resume functionality built into the combat routines.
+- **Driver/Follow Coordination:**  
+  - A designated driver runs full mission logic and broadcasts synchronization messages.
+  - Followers run the full combat, healing, and buff routines but wait for the driver’s sync signals to progress, keeping the group in step.
+  - A UI dropdown allows selection of the driver from the group member list.
+
+- **Enhanced Combat & Auto Buff/Heal:**  
+  - Class‑specific combat routines (e.g., mezzing, draining, nuking) and pause/resume functionality.
+  - Auto‑buff and auto‑heal modules ensure both group members and pets are maintained during missions.
 
 - **Navigation:**  
-  - Centralized, table‑driven navigation module (`modules/navigation.lua`) that stores waypoints for each mission zone.
-  - A "general" section with a placeholder for the Plane of Knowledge (PoK).  
-  - Automatic navigation to PoK and targeting of Old Man McKenzie when needed.
+  - A centralized, table‑driven navigation module stores waypoints for each mission zone.
+  - A "general" section includes a placeholder for the Plane of Knowledge (PoK), with automatic navigation and targeting of Old Man McKenzie when needed.
 
 - **UI Enhancements:**  
-  - An ImGui‑based UI (`modules/ui.lua`) that displays:
-    - Mission selection (dropdown or checkboxes for mission cycle).
-    - Mission progress, including a progress bar and timer.
-    - Current and next mission steps.
-    - A toggleable objectives window showing the status (Done/Not Done) of each objective.
-    - A log window displaying recent debug messages.
-    - Buttons to pause, resume, or stop the mission.
-    - Coordination controls for group role assignment and task rotation.
+  - An ImGui‑based UI displays mission selection (both single and cycle modes), progress (via a progress bar and timer), current and next mission steps, objectives status, and a log window.
+  - Additional UI controls include pause/resume, stop, and coordination options (assign roles, rotate tasks).
+  - A self‑test command verifies required plugins.
 
 - **Coordination & Communications:**  
-  - The Lua rebuild supports either **MQ2DanNet** or **MQ2EQBCS** for group coordination.
-  - A communications module (`modules/comms.lua`) broadcasts mission start and completion messages through the selected coordination plugin.
-  - The UI allows users to select which coordination plugin to use.
-
-- **Auto Buff/Auto Heal:**  
-  - An auto‑buff/auto‑heal module (`modules/healing.lua`) provides routines to automatically cast class‑specific buffs and heal group members (or pets) when below a set threshold.
+  - The Lua supports either **MQ2DanNet** or **MQ2EQBCS** for group coordination.
+  - A communications module broadcasts mission start, completion, and synchronization messages.
+  - The UI enables users to select the desired coordination plugin.
 
 - **Error Handling & Recovery:**  
-  - Each mission module includes error handling that retries objectives up to a maximum attempt count.
-  - Recovery logic re‑navigates to the current objective if the group is not ready or the target is not found after several attempts.
-  - After mission completion, the Lua targets the player and issues an auto‑loot command.
+  - Each mission module retries objectives up to a maximum count and includes recovery logic that re‑navigates to the objective if necessary.
+  - After mission completion, the Lua issues an auto‑loot command.
 
 ## Installation
 
 1. **Dependencies:**  
    Ensure the following MacroQuest Lua plugins are installed:
-   - **MQ2Nav**  
+   - **MQ2Nav**
    - **MQ2DanNet** or **MQ2EQBCS** (selectable via the UI)
 
 2. **Folder Structure:**  
-   Install the Lua files in your MacroQuest folder. A typical folder structure is as follows:
+   Place the Lua files in your MacroQuest folder with a structure similar to:
 
 3. **Configuration:**  
-- Adjust navigation coordinates in `modules/navigation.lua` if necessary (especially the "general" section for PoK).
-- Verify that your coordination plugin selection (default is "MQ2DanNet") suits your group’s setup. You can change this via the UI.
+- Adjust navigation coordinates in `modules/navigation.lua` as needed (especially the "general" section for PoK).
+- Use the UI to select the coordination plugin (MQ2DanNet vs. MQ2EQBCS) and to choose the driver from your group.
+- The driver is chosen via the UI dropdown; followers will automatically follow sync messages broadcast by the driver.
 
 4. **Loading the Lua:**  
-Launch MacroQuest and load the Lua by placing it in the appropriate directory. Use `/reload mq2cymissions` if needed.
+Launch MacroQuest and load the Lua by placing it in the appropriate directory. You may use `/reload mq2cymissions` if necessary.
 
 ## Usage
 
 ### In-Game Commands
 
 - **/omm start `<mission>`**  
-Starts a single mission run. Valid mission names: `lguk`, `naggy`, `dguk`.
+Runs a single mission. Valid mission names: `lguk`, `naggy`, `dguk`.
 
 - **/omm pause**  
 Pauses the current mission.
@@ -79,63 +75,74 @@ Resumes a paused mission.
 Stops the current mission.
 
 - **/omm selftest**  
-Runs a self‑test to verify that all required plugins (MQ2Nav, MQ2DanNet or MQ2EQBCS) are loaded.
+Runs a self‑test to verify required plugins (MQ2Nav, MQ2DanNet/MQ2EQBCS) are loaded.
 
 ### UI Controls
 
 - **Mission Manager Window:**  
-Open the ImGui window titled **"OMM Mission Manager"** via the `/mq2imgui` command (or it may open automatically on Lua load).
+Open the ImGui window titled **"OMM Mission Manager"** (automatically opens on Lua load or via `/mq2imgui`).
 
 - **Mission Selection:**  
-- Use the dropdown to select a single mission or select multiple missions via checkboxes for a mission cycle.
-- Use the "Start Mission" button to run the selected mission, or "Start Mission Cycle" to run a cycle of selected missions (with an option to repeat indefinitely).
+- Use the dropdown to select a single mission.
+- Use checkboxes for multi‑mission cycle selection and choose whether to repeat the cycle.
+
+- **Driver Selection:**  
+- A dropdown lists current group members; select the designated driver.
+- The driver’s name is stored and used to synchronize mission progress.
 
 - **Mission Progress & Objectives:**  
-- The window shows a progress bar indicating the percentage of completed objectives, along with a timer.
-- The current and next steps are displayed.
-- You can toggle a separate objectives window that lists each objective and its completion status.
+- A progress bar shows the percentage of completed objectives along with a timer.
+- Current and next mission steps are displayed.
+- Toggle a separate objectives window to view each objective’s status.
 
 - **Logs:**  
 - A toggle button displays a log window with recent debug messages for troubleshooting.
 
-- **Coordination & Communications:**  
-- The UI allows selection of the coordination plugin (MQ2DanNet vs. MQ2EQBCS).
-- Buttons are available to assign roles and rotate tasks using the coordination module.
+- **Coordination Controls:**  
+- Choose between MQ2DanNet and MQ2EQBCS for group coordination.
+- Buttons allow assignment of roles and task rotation, broadcasting these actions to the group.
 
 - **Auto Buff/Heal:**  
-- Buttons are provided to trigger auto‑buff routines and auto‑heal for group members and pets.
+- Buttons trigger auto‑buff routines and auto‑heal functions for both group members and pets.
+
+### Group Synchronization
+
+- **Driver/Follower Logic:**  
+The designated driver runs full mission logic and broadcasts sync messages after each objective. All group members (including followers) run full mission logic but wait for the sync message before proceeding to the next objective. This ensures that everyone remains at the same point in the mission.
 
 ## Troubleshooting
 
 - **Missing Plugins:**  
-If required plugins (MQ2Nav, MQ2DanNet/MQ2EQBCS) are not loaded, the Lua will attempt to load them. If they still fail to load, the Lua will abort and display an error message listing the missing plugins.
+If required plugins (MQ2Nav, MQ2DanNet/MQ2EQBCS) are missing, the Lua will attempt to load them. If they remain missing, the Lua aborts and displays an error with the missing plugins.
 
 - **Navigation Issues:**  
-If navigation does not work as expected, verify that the coordinates in `modules/navigation.lua` are correct and that you’re not already in a different zone.
+Check that the coordinates in `modules/navigation.lua` are correct and that you’re not in a different zone.
 
 - **Group Readiness:**  
-If objectives repeatedly fail due to group readiness timeouts, check that all group members are present and that network latency is acceptable.
+If objectives fail due to group readiness timeouts, ensure all group members are present and that network latency is acceptable.
+
+- **Synchronization Issues:**  
+Ensure that the designated driver is correctly selected via the UI and that all group members are receiving the broadcast sync messages (check the log window for debug messages).
 
 - **Debug Logging:**  
-Enable the debug logs in the UI (toggle the log window) for detailed information on mission progress and errors. This can help pinpoint issues in specific mission steps.
+Toggle the log window via the UI to review debug output for troubleshooting mission progress and errors.
 
 ## Attribution
 
 - **Lua Rebuild:**  
 This Lua rebuild is attributed to **Cybris**.
-
 - **Original Macro:**  
 The original macro was created by **TempusX** and **Levox**.
 
 ## Future Enhancements
 
 - **Auto-Loot Enhancements:**  
-Fine-tune loot handling logic if needed.
+Further refine loot handling if needed.
 - **Advanced Buff/Heal Routines:**  
 Expand the healing module with additional class‑specific or pet‑healing abilities.
 - **Mission Rotation:**  
-Add more advanced mission rotation features with auto‑retry or fallback strategies.
+Add more sophisticated mission rotation features with auto‑retry or fallback strategies.
 - **Persistent Logging:**  
-Optionally save logs to a file for extended debugging and analysis.
-- **UI Refinements:**  
-Further enhance the UI with additional indicators, configuration options, and real‑time group status updates.
+Optionally save logs to a file for extended debugging.
+- **Additional UI Refinements:**  
+Further enhance UI indicators and real‑time status updates for improved group coordination.
