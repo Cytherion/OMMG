@@ -8,38 +8,29 @@ local logger = require('utils.logger')
 local lguk = require('modules.missions.lguk')
 local naggy = require('modules.missions.naggy')
 local dguk  = require('modules.missions.dguk')
+local follower = require('modules.follower')
 
--- Bind self-test command
-mq.bind("/omm selftest", function()
-    local required = {"MQ2Nav", missionManager.getCoordinationPlugin()}
-    local missing = {}
-    for _, plugin in ipairs(required) do
-        if not mq.TLO.Plugin(plugin).Name() then
-            table.insert(missing, plugin)
-        end
-    end
-    if #missing > 0 then
-        local err = "Self Test Failed. Missing plugins: " .. table.concat(missing, ", ")
-        mq.cmdf("/echo %s", err)
-        logger.error(err)
-    else
-        mq.cmd("/echo Self Test Passed. All required plugins are loaded.")
-        logger.info("Self Test Passed.")
-    end
-end)
+-- Determine if this toon is the driver using the stored driver name.
+local driverName = missionManager.getDriverName()
+local isDriver = mq.TLO.Me.Name():lower() == driverName:lower()
+
+if isDriver then
+    logger.info("Running in DRIVER mode. Driver: %s", driverName)
+else
+    logger.info("Running in FOLLOWER mode. Following driver: %s", driverName)
+end
 
 local running = true
 
-local function renderMainUI()
-    ui.renderUI()
-end
-
-mq.imgui.init("OMMMissions", renderMainUI)
-
-mq.event("Shutdown", "You have been disconnected", function()
-    running = false
-end)
-
-while running do
-    mq.delay(1000)
+if isDriver then
+    local function renderMainUI()
+        ui.renderUI()
+    end
+    mq.imgui.init("OMMMissions", renderMainUI)
+    mq.event("Shutdown", "You have been disconnected", function() running = false end)
+    while running do
+        mq.delay(1000)
+    end
+else
+    follower.run()
 end

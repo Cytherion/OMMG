@@ -14,6 +14,17 @@ local missions = {
 
 local currentMission = nil
 local coordinationPlugin = "MQ2DanNet"  -- Default coordination plugin
+local driverName = nil  -- The selected driver name
+
+function missionManager.setDriverName(name)
+    driverName = name
+    logger.info("Driver set to: %s", driverName)
+end
+
+function missionManager.getDriverName()
+    -- If no driver is selected, default to the group leader
+    return driverName or (mq.TLO.Group.Leader() and mq.TLO.Group.Leader().Name() or "unknown")
+end
 
 function missionManager.select(missionName)
     local mission = missions[missionName]
@@ -32,7 +43,7 @@ function missionManager.run()
         return
     end
     logger.info("Starting mission...")
-    comms.broadcast("Mission starting: " .. currentMission and currentMission.name or "Unknown")
+    comms.broadcast("Mission starting: " .. (currentMission.name or "unknown"))
     currentMission.run()
     comms.broadcast("Mission complete!")
     logger.info("Mission complete!")
@@ -41,7 +52,7 @@ end
 -- Run a cycle of selected missions; repeat if repeatFlag is true.
 function missionManager.runSelected(selectedMissions, repeatFlag)
     logger.info("Starting mission cycle...")
-    missionManager.ensureInPoK()  -- Ensure we start from PoK.
+    missionManager.ensureInPoK()  -- Ensure we start from the Plane of Knowledge.
     repeat
         for _, missionKey in ipairs(selectedMissions) do
             local mission = missions[missionKey]
@@ -73,7 +84,7 @@ function missionManager.available()
     return list
 end
 
--- Ensure the user is in the Plane of Knowledge, then target Old Man McKenzie.
+-- Ensure we are in the Plane of Knowledge (PoK) and then target Old Man McKenzie.
 function missionManager.ensureInPoK()
     local zone = mq.TLO.Zone.ShortName() or ""
     if zone:lower() ~= "pok" then

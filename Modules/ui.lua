@@ -3,8 +3,6 @@
 local mq = require('mq')
 local imgui = mq.imgui
 local missionManager = require('modules.mission_manager')
-local coordination = require('modules/coordination')
-local healing = require('modules.healing')
 
 local ui = {
     currentMission = nil,
@@ -20,6 +18,7 @@ local ui = {
     logs = {},
     missionSelections = { lguk = false, naggy = false, dguk = false },
     repeatMissions = false,
+    driverSelection = nil, -- The name of the driver selected from group members
 }
 
 function ui.setCurrentMission(missionName)
@@ -89,23 +88,20 @@ end
 
 function ui.renderObjectivesWindow()
     if not ui.showObjectives then return end
-    
     if not imgui.Begin("Mission Objectives", true, 0) then
         imgui.End()
         return
     end
-    
     imgui.Text("Objectives Status:")
     for _, obj in ipairs(ui.objectivesStatus) do
         local statusText = obj.completed and "Done" or "Not Done"
         local color = obj.completed and imgui.IM_COL32(0, 200, 0, 255) or imgui.IM_COL32(200, 0, 0, 255)
         imgui.PushStyleColor(imgui.ImGuiCol_Button, color)
         if imgui.Button(obj.label .. ": " .. statusText, 200, 0) then
-            -- Optional: further details on click.
+            -- Optional: more detail on click.
         end
         imgui.PopStyleColor()
     end
-    
     imgui.End()
 end
 
@@ -115,12 +111,23 @@ function ui.renderLogsWindow()
         imgui.End()
         return
     end
-    
     for _, logEntry in ipairs(ui.logs) do
         imgui.TextWrapped(logEntry)
     end
-    
     imgui.End()
+end
+
+-- Helper: Get a list of group member names.
+local function getGroupMembers()
+    local members = {}
+    local count = mq.TLO.Group.Members() or 0
+    for i = 0, count - 1 do
+        local name = mq.TLO.Group.Member(i).Name()
+        if name then
+            table.insert(members, name)
+        end
+    end
+    return members
 end
 
 function ui.renderUI()
@@ -129,7 +136,6 @@ function ui.renderUI()
         return
     end
 
-    -- Mission selection dropdown
     imgui.Text("Select a mission:")
     if imgui.BeginCombo("Mission", ui.currentMission or "") then
         local missionOptions = {"lguk", "naggy", "dguk"}
@@ -150,7 +156,20 @@ function ui.renderUI()
     end
 
     imgui.Separator()
-    -- Mission Cycle Selection (checkboxes)
+    -- Driver selection dropdown
+    imgui.Text("Select Driver:")
+    local groupMembers = getGroupMembers()
+    local currentDriver = missionManager.getDriverName()
+    if imgui.BeginCombo("Driver", currentDriver or "None") then
+        for _, name in ipairs(groupMembers) do
+            if imgui.Selectable(name, currentDriver and (currentDriver:lower() == name:lower())) then
+                missionManager.setDriverName(name)
+            end
+        end
+        imgui.EndCombo()
+    end
+
+    imgui.Separator()
     imgui.Text("Mission Cycle Selection:")
     for key, value in pairs(ui.missionSelections) do
         local changed, selected = imgui.Checkbox(key, value)
@@ -170,7 +189,6 @@ function ui.renderUI()
             end
         end
         if #selectedMissions > 0 then
-            local missionManager = require('modules.mission_manager')
             missionManager.runSelected(selectedMissions, ui.repeatMissions)
         else
             mq.cmd("/echo No missions selected for cycle.")
@@ -178,41 +196,7 @@ function ui.renderUI()
     end
 
     imgui.Separator()
-    -- Mission progress display
     renderMissionProgress()
-
-    imgui.Separator()
-    -- Coordination Controls
-    imgui.Text("Group Coordination:")
-    if imgui.Button("Assign Roles", 150, 0) then
-        -- Example static role assignments; modify as needed.
-        local coordination = require('modules/coordination')
-        local roleAssignments = { ["Alice"] = "Assist", ["Bob"] = "Healer", ["Charlie"] = "DPS" }
-        coordination.broadcastRoleAssignments(roleAssignments)
-    end
-    imgui.SameLine()
-    if imgui.Button("Rotate Tasks", 150, 0) then
-        local coordination = require('modules/coordination')
-        coordination.rotateTasks()
-    end
-
-    imgui.Separator()
-    -- Auto-Buff/Auto-Heal Controls
-    imgui.Text("Auto-Buff/Auto-Heal:")
-    if imgui.Button("Auto-Buff", 100, 0) then
-        local healing = require('modules.healing')
-        healing.autoBuff()
-    end
-    imgui.SameLine()
-    if imgui.Button("Heal Group (<60%)", 150, 0) then
-        local healing = require('modules.healing')
-        healing.autoHealGroup(60)
-    end
-    if imgui.Button("Heal Pet (<70%)", 150, 0) then
-        local healing = require('modules.healing')
-        healing.autoHealPet(70)
-    end
-
     imgui.Separator()
     if imgui.Button("Toggle Objectives", 150, 0) then
         ui.showObjectives = not ui.showObjectives

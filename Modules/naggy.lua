@@ -7,6 +7,7 @@ local navigation = require('modules.navigation')
 local logger = require('utils.logger')
 local missionManager = require('modules.mission_manager')
 local ui = require('modules.ui')
+local sync = require('modules.sync')
 
 local naggy = {}
 
@@ -41,6 +42,10 @@ function naggy.run()
     ui.setCurrentMission("Nagafen's Lair")
     updateObjectivesStatus(1)
     
+    local driverName = missionManager.getDriverName()
+    local isDriver = mq.TLO.Me.Name():lower() == driverName:lower()
+    logger.info("Driver check: current toon %s; driver is %s; isDriver = %s", mq.TLO.Me.Name(), driverName, tostring(isDriver))
+    
     for i, step in ipairs(objectives) do
         ui.setMissionSteps("Current: " .. step.label, (objectives[i+1] and "Next: " .. objectives[i+1].label or "None"))
         logger.info("Moving to %s", step.label)
@@ -56,7 +61,7 @@ function naggy.run()
                 break
             end
         end
-        
+
         local attempts = 0
         local maxAttempts = 10
         repeat
@@ -76,16 +81,26 @@ function naggy.run()
         until mq.TLO.Task("Ancient Heroes - Nagafen's Lair").Objective(step.objective).Status() == "Done"
         
         if mq.TLO.Task("Ancient Heroes - Nagafen's Lair").Objective(step.objective).Status() ~= "Done" then
-            logger.error("Objective %s still not complete. Skipping to next objective.", step.label)
+            logger.error("Objective %s still not complete. Skipping.", step.label)
         else
             logger.success("Objective complete: %s", step.label)
         end
         
         updateObjectivesStatus(i + 1)
+        
+        -- Synchronization: driver broadcasts current step; followers wait.
+        if isDriver then
+            sync.broadcastStep(i)
+        else
+            if not sync.waitForStep(i, 30000) then
+                logger.error("Sync timeout waiting for objective %d", i)
+            end
+        end
+        
         mq.cmd("/stand")
         mq.delay(2000)
     end
-    
+
     missionManager.clearActive()
     ui.setCurrentMission(nil)
     ui.setMissionSteps("None", "None")
